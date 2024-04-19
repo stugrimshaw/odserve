@@ -1,0 +1,6 @@
+fastapi==0.110.1
+pydantic==2.7.0
+uvicorn==0.29.0
+MIDIUtil==1.2.1
+requests==2.31.0
+pydub==0.25.1
