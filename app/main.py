@@ -1,6 +1,9 @@
 from typing import List, Optional
 import requests
+
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
+
 from pydantic import BaseModel
 
 from midiutil import MIDIFile
@@ -28,8 +31,8 @@ def read_root():
 async def handle_music_req(request: HeadSoupMusicRequest):
     subprocess.run("rm *.wav; rm *.mp3; rm *.mid", shell=True)
     try:
-        url = "http://odcore:8080/midijson"
-        # url = "http://localhost:8080/midijson"
+        # url = "http://odcore:8080/midijson"
+        url = "http://localhost:8080/midijson"
 
         print("forwarding fuegodata", request, "to", url)
         response = requests.post(url, json=request.model_dump())
@@ -38,24 +41,23 @@ async def handle_music_req(request: HeadSoupMusicRequest):
         else:
             print("POST request failed with status code:", response.status_code)
 
-        # create midi file from response
         data = response.json()
+        response_timings = data['timings']
+        timings_list = [float(timing) for timing in response_timings]
+
+        # create midi file from response
         midiJSONDataArray = data['midiJSONData']
         write_midi_file(midiJSONDataArray)
-        
         # create audio file from MIDI file
         render_to_audio()
+        # encode audio for response
         audio_file = "master.mp3"
-
-        # could we do this in render pass?
         audio = AudioSegment.from_mp3(audio_file)
         audio_data = BytesIO()
         audio.export(audio_data, format="mp3")
         audio_data.seek(0)
         audio_base64 = base64.b64encode(audio_data.getvalue()).decode()
 
-        timings_list = [float(timing) for timing in request.timings]
-        
         response_data = {
             "audio": audio_base64,
             "durations": timings_list,
@@ -145,11 +147,11 @@ def render_to_audio():
     fluidCmdTemplate = "fluidsynth ../FluidR3_GM.sf2 {} --fast-render={}"
 
     #homebrew
-    # print("USING NORMALIZE (macOS Homebrew)")
-    # normalizeCmdTemplate = "normalize {}"
+    print("USING NORMALIZE (macOS Homebrew)")
+    normalizeCmdTemplate = "normalize {}"
     #app-get
-    print("USING NORMALIZE-AUDIO (linux app-get)")
-    normalizeCmdTemplate = "normalize-audio {}"
+    # print("USING NORMALIZE-AUDIO (linux app-get)")
+    # normalizeCmdTemplate = "normalize-audio {}"
 
     directory = "."
 
